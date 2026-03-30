@@ -59,6 +59,16 @@ class Response extends AbstractResponse implements RedirectResponseInterface
     }
 
     /**
+     * Compatibility helper for applications that map InovioPay numeric service codes.
+     *
+     * @return null|string
+     */
+    public function getResponseCode()
+    {
+        return isset($this->data['SERVICE_RESPONSE']) ? (string) $this->data['SERVICE_RESPONSE'] : null;
+    }
+
+    /**
      * @return null|string
      */
     public function getMessage()

@@ -2,6 +2,8 @@
 
 namespace Omnipay\InovioPay\Message;
 
+use Omnipay\Common\Exception\InvalidResponseException;
+
 /**
  * Class AbstractRequest
  *
@@ -222,48 +224,29 @@ abstract class AbstractRequest extends \Omnipay\Common\Message\AbstractRequest
         return $headers;
     }
 
-    protected function createClientRequest($data, array $headers = null)
-    {
-        /*$config                          = $this->httpClient->getConfig();
-        $curlOptions                     = $config->get('curl.options');
-        $curlOptions[CURLOPT_SSLVERSION] = 6;
-        $config->set('curl.options', $curlOptions);
-        $this->httpClient->setConfig($config);*/
-
-        // don't throw exceptions for 4xx errors
-        $this->httpClient->getEventDispatcher()->addListener(
-            'request.error',
-            function ($event) {
-                if ($event['response']->isClientError()) {
-                    $event->stopPropagation();
-                }
-            }
-        );
-
-        $httpRequest = $this->httpClient->createRequest(
-            $this->getHttpMethod(),
-            $this->getEndpoint(),
-            $headers,
-            $data
-        );
-
-        //$httpRequest->getCurlOptions()->set(CURLOPT_SSLVERSION, 6); // CURL_SSLVERSION_TLSv1_2 for libcurl < 7.35
-
-        return $httpRequest;
-    }
-
-    /**
-     * {@inheritdoc}
-     */
     public function sendData($data)
     {
-        $httpRequest  = $this->createClientRequest($data, $this->getHeaders());
-        $httpResponse = $httpRequest->send();
+        $httpResponse = $this->httpClient->request(
+            $this->getHttpMethod(),
+            $this->getEndpoint(),
+            $this->getHeaders(),
+            http_build_query($data)
+        );
 
-        return $this->response = new Response($this, $httpResponse->json(), $httpResponse->getStatusCode());
+        $body = (string) $httpResponse->getBody();
+
+        try {
+            $responseData = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $exception) {
+            throw new InvalidResponseException(
+                'Invalid JSON response received from InovioPay.',
+                0,
+                $exception
+            );
+        }
+
+        return $this->response = new Response($this, $responseData, $httpResponse->getStatusCode());
     }
-
-
 
     /**
      * Set the common data used in every request.
